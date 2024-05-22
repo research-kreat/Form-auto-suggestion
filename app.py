@@ -186,7 +186,7 @@ def main():
 
         # Generate hypotheses
         hypotheses = generate_hypotheses(domain, sub_domain, title, problem_type, description)
-        st.header("Hypotheses")
+        st.header("Hypothesis")
         st.write(hypotheses)
 
 if __name__ == "__main__":
