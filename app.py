@@ -74,9 +74,14 @@ def determine_problem_type(domain, sub_domain, title, abstract):
 
     Abstract:
     ```{abstract}```
-
+    These are the Problem Category:
+    - **Operational**: Problems related to internal processes or efficiency.
+    - **Technical**: Problems related to technology or technical processes.
+    - **Strategic**: Problems impacting long-term goals or strategic directions.
+    - **Customer Experience**: Problems affecting customer satisfaction or engagement.
+    - **Compliance**: Legal or regulatory issues needing resolution.
     Your task is to identify and specify the problem-type based on the information provided. Ensure that the problem-type accurately reflects the nature of the problem described by the title and abstract, and is relevant to the given domain and sub-domain.
-    Just specify the problem type(2-3 words) accurately strictly in this format.
+    Just specify the problem type(1-2 words) accurately strictly in this format from the above 5 options.
     "Problem Type: ____________"
     """
     )
@@ -153,41 +158,84 @@ def generate_hypotheses(domain, sub_domain, title, problem_type, description):
     return chain.invoke({"domain": domain, "sub_domain": sub_domain, "title": title, "problem_type": problem_type, "description": description})
 
 
-# Streamlit app
+# Initialize session state variables
+if "domain" not in st.session_state:
+    st.session_state.domain = ""
+if "sub_domain" not in st.session_state:
+    st.session_state.sub_domain = ""
+if "title" not in st.session_state:
+    st.session_state.title = ""
+if "abstract" not in st.session_state:
+    st.session_state.abstract = ""
+if "description" not in st.session_state:
+    st.session_state.description = ""
+if "problem_type" not in st.session_state:
+    st.session_state.problem_type = ""
+if "assumptions" not in st.session_state:
+    st.session_state.assumptions = ""
+if "hypotheses" not in st.session_state:
+    st.session_state.hypotheses = ""
+
 def main():
     st.title("Problem Solver App")
     st.sidebar.header("Input")
 
     # Input fields
-    domain = st.sidebar.text_input("Domain")
-    sub_domain = st.sidebar.text_input("Sub-domain")
-    title = st.sidebar.text_input("Title")
+    st.session_state.domain = st.sidebar.text_input("Domain", value=st.session_state.domain)
+    st.session_state.sub_domain = st.sidebar.text_input("Sub-domain", value=st.session_state.sub_domain)
+    st.session_state.title = st.sidebar.text_input("Title", value=st.session_state.title)
 
-    if st.sidebar.button("Generate Solutions"):
-        # Generate abstract
-        abstract = generate_abstract(domain, sub_domain, title)
+    if st.sidebar.button("Feed Data"):
+        st.session_state.abstract = ""
+        st.session_state.description = ""
+        st.session_state.problem_type = ""
+        st.session_state.assumptions = ""
+        st.session_state.hypotheses = ""
+
+    # Generate Abstract
+    if st.button('Generate Abstract'):
+        st.session_state.abstract = generate_abstract(st.session_state.domain, st.session_state.sub_domain, st.session_state.title)
+    
+    # Display Abstract
+    if st.session_state.abstract:
         st.header("Abstract")
-        st.write(abstract)
+        st.write(st.session_state.abstract)
 
-        # Generate description
-        description = generate_description(domain, sub_domain, title, abstract)
+    # Generate Description
+    if st.session_state.abstract and st.button('Generate Description'):
+        st.session_state.description = generate_description(st.session_state.domain, st.session_state.sub_domain, st.session_state.title, st.session_state.abstract)
+    
+    # Display Description
+    if st.session_state.description:
         st.header("Description")
-        st.write(description)
+        st.write(st.session_state.description)
 
-        # Determine problem type
-        problem_type = determine_problem_type(domain, sub_domain, title, abstract)
+    # Determine Problem Type
+    if st.session_state.description and st.button('Classify Problem Type'):
+        st.session_state.problem_type = determine_problem_type(st.session_state.domain, st.session_state.sub_domain, st.session_state.title, st.session_state.abstract)
+    
+    # Display Problem Type
+    if st.session_state.problem_type:
         st.header("Problem Type")
-        st.write(problem_type)
+        st.write(st.session_state.problem_type)
 
-        # Generate assumptions
-        assumptions = generate_assumptions(domain, sub_domain, title, problem_type, description)
+    # Generate Assumptions
+    if st.session_state.problem_type and st.button('Generate Assumption'):
+        st.session_state.assumptions = generate_assumptions(st.session_state.domain, st.session_state.sub_domain, st.session_state.title, st.session_state.problem_type, st.session_state.description)
+    
+    # Display Assumptions
+    if st.session_state.assumptions:
         st.header("Assumptions")
-        st.write(assumptions)
+        st.write(st.session_state.assumptions)
 
-        # Generate hypotheses
-        hypotheses = generate_hypotheses(domain, sub_domain, title, problem_type, description)
+    # Generate Hypotheses
+    if st.session_state.assumptions and st.button('Generate Hypothesis'):
+        st.session_state.hypotheses = generate_hypotheses(st.session_state.domain, st.session_state.sub_domain, st.session_state.title, st.session_state.problem_type, st.session_state.description)
+    
+    # Display Hypotheses
+    if st.session_state.hypotheses:
         st.header("Hypothesis")
-        st.write(hypotheses)
+        st.write(st.session_state.hypotheses)
 
 if __name__ == "__main__":
     main()
