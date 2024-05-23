@@ -31,6 +31,38 @@ def generate_abstract(domain, sub_domain, title):
 
     return chain.invoke({"domain": domain, "sub_domain": sub_domain, "title": title})
 
+def improve_abstract(domain, sub_domain, title, abstract, feedback):
+    prompt = ChatPromptTemplate.from_template(f"""
+    You are provided with a title, domain, sub-domain, and feedback on a previously generated abstract. Use these details to improve the abstract for the user's problem.
+
+    Domain:
+    ```{domain}```
+
+    Sub-domain:
+    ```{sub_domain}```
+
+    Title:
+    ```{title}```
+
+    Abstract:
+    ```{abstract}```
+
+    Feedback:
+    ```{feedback}```
+
+    Your task is to generate a better abstract based on the feedback, ensuring relevance to the given domain and sub-domain.
+    """
+    )
+
+    chain = (
+        prompt
+        | llm
+        | StrOutputParser()
+    )
+
+    return chain.invoke({"domain": domain, "sub_domain": sub_domain, "title": title, "abstract": abstract, "feedback": feedback})
+
+
 def generate_description(domain, sub_domain, title, abstract):
     prompt = ChatPromptTemplate.from_template("""
     You are provided with a title, domain, sub-domain, and an abstract. Use these details to create a detailed description of the user's problem.
@@ -58,6 +90,38 @@ def generate_description(domain, sub_domain, title, abstract):
     )
 
     return chain.invoke({"domain": domain, "sub_domain": sub_domain, "title": title, "abstract": abstract})
+
+def improve_description(domain, sub_domain, title, abstract, feedback):
+    prompt = ChatPromptTemplate.from_template(f"""
+    You are provided with a title, domain, sub-domain, an abstract, and feedback on a previously generated description. Use these details to improve the description for the user's problem.
+
+    Domain:
+    ```{domain}```
+
+    Sub-domain:
+    ```{sub_domain}```
+
+    Title:
+    ```{title}```
+
+    Abstract:
+    ```{abstract}```
+
+    Feedback:
+    ```{feedback}```
+
+    Your task is to generate a better description based on the feedback, ensuring relevance to the given domain and sub-domain.
+    """
+    )
+
+    chain = (
+        prompt
+        | llm
+        | StrOutputParser()
+    )
+
+    return chain.invoke({"domain": domain, "sub_domain": sub_domain, "title": title, "abstract": abstract, "feedback": feedback})
+
 
 def determine_problem_type(domain, sub_domain, title, abstract):
     prompt = ChatPromptTemplate.from_template("""
@@ -175,6 +239,14 @@ if "assumptions" not in st.session_state:
     st.session_state.assumptions = ""
 if "hypotheses" not in st.session_state:
     st.session_state.hypotheses = ""
+if "feedback" not in st.session_state:
+    st.session_state.feedback = ""
+if "improved_abstract" not in st.session_state:
+    st.session_state.improved_abstract = ""
+if "generate_description_enabled" not in st.session_state:
+    st.session_state.generate_description_enabled = False
+if "dislike_clicked" not in st.session_state:
+    st.session_state.dislike_clicked = False
 
 def main():
     st.title("Problem Solver App")
@@ -191,51 +263,95 @@ def main():
         st.session_state.problem_type = ""
         st.session_state.assumptions = ""
         st.session_state.hypotheses = ""
+        st.session_state.feedback = ""
+        st.session_state.improved_abstract = ""
+        st.session_state.generate_description_enabled = False
+        st.session_state.dislike_clicked = False
 
     # Generate Abstract
     if st.button('Generate Abstract'):
         st.session_state.abstract = generate_abstract(st.session_state.domain, st.session_state.sub_domain, st.session_state.title)
+        st.session_state.feedback = ""
+        st.session_state.improved_abstract = ""
+        st.session_state.dislike_clicked = False
     
     # Display Abstract
     if st.session_state.abstract:
         st.header("Abstract")
         st.write(st.session_state.abstract)
 
-    # Generate Description
-    if st.session_state.abstract and st.button('Generate Description'):
-        st.session_state.description = generate_description(st.session_state.domain, st.session_state.sub_domain, st.session_state.title, st.session_state.abstract)
-    
-    # Display Description
-    if st.session_state.description:
-        st.header("Description")
-        st.write(st.session_state.description)
+        if st.button("Like Abstract"):
+            st.session_state.improved_abstract = st.session_state.abstract  # Mark the abstract as final
+            st.session_state.generate_description_enabled = True
+            st.session_state.dislike_clicked = False
 
-    # Determine Problem Type
-    if st.session_state.description and st.button('Classify Problem Type'):
-        st.session_state.problem_type = determine_problem_type(st.session_state.domain, st.session_state.sub_domain, st.session_state.title, st.session_state.abstract)
-    
-    # Display Problem Type
-    if st.session_state.problem_type:
-        st.header("Problem Type")
-        st.write(st.session_state.problem_type)
+        if st.button("Dislike Abstract"):
+            st.session_state.dislike_clicked = True
 
-    # Generate Assumptions
-    if st.session_state.problem_type and st.button('Generate Assumption'):
-        st.session_state.assumptions = generate_assumptions(st.session_state.domain, st.session_state.sub_domain, st.session_state.title, st.session_state.problem_type, st.session_state.description)
-    
-    # Display Assumptions
-    if st.session_state.assumptions:
-        st.header("Assumptions")
-        st.write(st.session_state.assumptions)
+        if st.session_state.dislike_clicked:
+            st.session_state.feedback = st.text_input("What is missing in the abstract?", key="feedback_input")
+            if st.session_state.feedback:
+                if st.button("Improve Abstract", key="improve_abstract_button"):
+                    st.session_state.improved_abstract = improve_abstract(st.session_state.domain, st.session_state.sub_domain, st.session_state.title, st.session_state.abstract, st.session_state.feedback)
+                    st.session_state.abstract = st.session_state.improved_abstract
+                    st.session_state.feedback = ""  # Reset feedback
+                    st.experimental_rerun()
 
-    # Generate Hypotheses
-    if st.session_state.assumptions and st.button('Generate Hypothesis'):
-        st.session_state.hypotheses = generate_hypotheses(st.session_state.domain, st.session_state.sub_domain, st.session_state.title, st.session_state.problem_type, st.session_state.description)
-    
-    # Display Hypotheses
-    if st.session_state.hypotheses:
-        st.header("Hypothesis")
-        st.write(st.session_state.hypotheses)
+    if st.session_state.improved_abstract:
+        st.header("Improved Abstract")
+        st.write(st.session_state.improved_abstract)
+
+        if st.button("Like Improved Abstract"):
+            st.session_state.generate_description_enabled = True
+
+        if st.button("Dislike Improved Abstract"):
+            st.session_state.dislike_clicked = True
+
+        if st.session_state.dislike_clicked:
+            st.session_state.feedback = st.text_input("What is missing in the improved abstract?", key="feedback_input_improved")
+            if st.session_state.feedback:
+                if st.button("Improve Abstract Again", key="improve_abstract_button_again"):
+                    st.session_state.improved_abstract = improve_abstract(st.session_state.domain, st.session_state.sub_domain, st.session_state.title, st.session_state.improved_abstract, st.session_state.feedback)
+                    st.session_state.abstract = st.session_state.improved_abstract
+                    st.session_state.feedback = ""  # Reset feedback
+                    st.experimental_rerun()
+
+    # Enable Description generation only if abstract is accepted
+    if st.session_state.generate_description_enabled:
+        if st.button('Generate Description'):
+            st.session_state.description = generate_description(st.session_state.domain, st.session_state.sub_domain, st.session_state.title, st.session_state.improved_abstract)
+        
+        # Display Description
+        if st.session_state.description:
+            st.header("Description")
+            st.write(st.session_state.description)
+
+        # Determine Problem Type
+        if st.button('Classify Problem Type'):
+            st.session_state.problem_type = determine_problem_type(st.session_state.domain, st.session_state.sub_domain, st.session_state.title, st.session_state.improved_abstract)
+        
+        # Display Problem Type
+        if st.session_state.problem_type:
+            st.header("Problem Type")
+            st.write(st.session_state.problem_type)
+
+        # Generate Assumptions
+        if st.button('Generate Assumption'):
+            st.session_state.assumptions = generate_assumptions(st.session_state.domain, st.session_state.sub_domain, st.session_state.title, st.session_state.problem_type, st.session_state.description)
+        
+        # Display Assumptions
+        if st.session_state.assumptions:
+            st.header("Assumptions")
+            st.write(st.session_state.assumptions)
+
+        # Generate Hypotheses
+        if st.button('Generate Hypothesis'):
+            st.session_state.hypotheses = generate_hypotheses(st.session_state.domain, st.session_state.sub_domain, st.session_state.title, st.session_state.problem_type, st.session_state.description)
+        
+        # Display Hypotheses
+        if st.session_state.hypotheses:
+            st.header("Hypotheses")
+            st.write(st.session_state.hypotheses)
 
 if __name__ == "__main__":
     main()
